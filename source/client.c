@@ -62,7 +62,9 @@ void connect_and_request(const char* path, char request_type) {
 
 int main() {
     char type;
-
+    printf("Opção e : exit \n");
+    while (type != 'e')
+    {
     printf("Digite o tipo de dado a ser solicitado: (s/i)\n");
     scanf(" %c", &type);
     getchar(); // Clear newline from input buffer
@@ -74,6 +76,6 @@ int main() {
     } else {
         printf("Tipo de dado inválido.\n");
     }
-
+    }
     return 0;
 }
