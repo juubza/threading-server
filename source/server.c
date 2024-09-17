@@ -1,4 +1,4 @@
-//Servidor pipe (testado usando WSL)
+// Servidor pipe - testado no WSL
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -7,64 +7,77 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <pthread.h>
-#include <assert.h>
-#include <math.h>
+#include <string.h>
 
-#define INT_SOCK_PATH "/tmp/pipe_int"
-#define STRING_SOCK_PATH "/tmp/pipe_string"
+#define SOCK_PATH "/tmp/pipeso"
+#define MAX_STR_LEN 16
 
 pthread_mutex_t em = PTHREAD_MUTEX_INITIALIZER;
-int randomNumber;
-char randomString[20] = "Morte aos ponteiros!";
-char buffer[1024];
 
-void thread_int(void) {
-    pthread_mutex_lock(&em);
-    randomNumber = rand() % (1000 - 100 + 1) + 100;
-    buffer[0] = randomNumber;
-    pthread_mutex_unlock(&em);
-}
-
-void thread_string(void) {
-    pthread_mutex_lock(&em);
-    for (int i = 0; i < strlen(randomString); i++)
-    {
-        buffer[i] = randomString[i];
+// Função para gerar string aleatória
+void rand_string(char *str, size_t size) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if (size) {
+        --size;
+        for (size_t n = 0; n < size; n++) {
+            int key = rand() % (int)(sizeof(charset) - 1);
+            str[n] = charset[key];
+        }
+        str[size] = '\0';
     }
-    pthread_mutex_unlock(&em);
 }
 
-void connect_pipe(char type) {
+// Função de thread para gerar número inteiro
+void *thread_int(void *arg) {
+    pthread_mutex_lock(&em);
+    int randomNumber = rand() % (1000 - 100 + 1) + 100;
+    printf("Número gerado: %d\n", randomNumber);
+    pthread_mutex_unlock(&em);
+    
+    int *result = malloc(sizeof(int));
+    *result = randomNumber;
+    return result;
+}
+
+// Função de thread para gerar string
+void *thread_string(void *arg) {
+    pthread_mutex_lock(&em);
+    char *randomString = malloc(MAX_STR_LEN);
+    rand_string(randomString, MAX_STR_LEN - 1);
+    printf("String gerada: %s\n", randomString);
+    pthread_mutex_unlock(&em);
+    
+    return randomString;
+}
+
+int main() 
+{
     int sockfd, newsockfd, len;
     struct sockaddr_un local, remote;
+    char buffer[1024];
     char dataRequested;
-    pthread_t t_string1, t_string2, t_string3, t_int1, t_int2, t_int3;
+    pthread_t t_string, t_int;
 
+    // Create socket
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
-        perror("Falha em criar o pipe");
-        return;
+        perror("Falha em criar o socket.");
+        return 1;
     }
 
+    // Bind socket to local address
     memset(&local, 0, sizeof(local));
     local.sun_family = AF_UNIX;
-
-    if (toupper(type) == 'S') {
-        strncpy(local.sun_path, STRING_SOCK_PATH, sizeof(local.sun_path) - 1);
-    }
-    else {
-        strncpy(local.sun_path, INT_SOCK_PATH, sizeof(local.sun_path) - 1);
-    }
-
-    unlink(local.sun_path);
+    strncpy(local.sun_path, SOCK_PATH, sizeof(local.sun_path) - 1);
+    unlink(local.sun_path); // Remove qualquer instância anterior
     len = strlen(local.sun_path) + sizeof(local.sun_family);
 
     if (bind(sockfd, (struct sockaddr *)&local, len) < 0)
     {
-        perror("Falha em capturar o socket.");
+        perror("Falha em associar o socket.");
         close(sockfd);
-        return;
+        return 1;
     }
 
     while (1) {
@@ -73,15 +86,10 @@ void connect_pipe(char type) {
         {
             perror("Falha em escutar o socket.");
             close(sockfd);
-            return;
+            return 1;
         }
 
-        if (toupper(type) == 'S') {
-            printf("Servidor ouvindo em %s.\n", STRING_SOCK_PATH);
-        }
-        else {
-            printf("Servidor ouvindo em %s.\n", INT_SOCK_PATH);
-        }
+        printf("Servidor ouvindo em %s.\n", SOCK_PATH);
 
         // Accept connections
         memset(&remote, 0, sizeof(remote));
@@ -91,7 +99,7 @@ void connect_pipe(char type) {
         {
             perror("Falha em aceitar conexão.");
             close(sockfd);
-            return;
+            return 1;
         }
 
         printf("Cliente conectado!\n");
@@ -102,33 +110,34 @@ void connect_pipe(char type) {
             perror("Falha em ler do socket.");
             close(newsockfd);
             close(sockfd);
-            return;
+            return 1;
         }
 
         printf("Dado solicitado: %s\n", buffer);
 
         // Process data
         dataRequested = toupper(buffer[0]);
-
-        switch (dataRequested) // TODO verificar se abrimos sempre as 3 threads ou ver um outro mecanismo para permitir que varios clientes se conectem a mesma pipe com threads separadas
+        switch (dataRequested)
         {
-            case 'I':
-                len = floor(log10(abs(randomNumber))) + 1;
-                pthread_create(&t_int1, NULL, (void *) thread_int, NULL);
-                pthread_create(&t_int2, NULL, (void *) thread_int, NULL);
-                pthread_create(&t_int3, NULL, (void *) thread_int, NULL);
+            case 'I': {
+                int *result;
+                pthread_create(&t_int, NULL, thread_int, NULL);
+                pthread_join(t_int, (void **)&result);
+                sprintf(buffer, "%d", *result);  // Converte o número para string e coloca no buffer
+                free(result);
                 break;
-            case 'S':
-                len = strlen(randomString);
-                pthread_create(&t_string1, NULL, (void *) thread_string, NULL);
-                pthread_create(&t_string2, NULL, (void *) thread_string, NULL);
-                pthread_create(&t_string3, NULL, (void *) thread_string, NULL);
+            }
+            case 'S': {
+                char *result;
+                pthread_create(&t_string, NULL, thread_string, NULL);
+                pthread_join(t_string, (void **)&result);
+                strncpy(buffer, result, sizeof(buffer));
+                free(result);
                 break;
+            }
             default:
-                perror("Dado solicitado é inválido.");
-                close(newsockfd);
-                close(sockfd);
-                return;
+                strcpy(buffer, "Erro: Tipo de dado inválido.");
+                break;
         }
 
         // Write processed data back to client
@@ -137,18 +146,12 @@ void connect_pipe(char type) {
             perror("Falha em escrever no socket.");
             close(newsockfd);
             close(sockfd);
-            return;
+            return 1;
         }
 
-        printf("Dado enviado ao cliente.\n");
+        printf("Dado enviado ao cliente: %s\n", buffer);
     }
-}
 
-int main()
-{
-    // TODO fazer ambas as conexões rodarem paralelamente, atualmente só a primeira inicia e espera ela terminar para a segunda iniciar
-    connect_pipe('S');
-    connect_pipe('I');
-
+    close(sockfd);
     return 0;
 }
