@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define INT_SOCK_PATH "/tmp/pipe_int"
 #define STRING_SOCK_PATH "/tmp/pipe_string"
@@ -19,7 +20,7 @@ void connect_pipe(char type) {
     if (sockfd < 0)
     {
         perror("Falha em criar o socket.");
-        return 1;
+        return;
     }
 
     // Connect to server
@@ -38,7 +39,7 @@ void connect_pipe(char type) {
     {
         perror("Falha em conectar no servidor.");
         close(sockfd);
-        return 1;
+        return;
     }
 
     printf("Conectado ao servidor!\n");
@@ -50,7 +51,7 @@ void connect_pipe(char type) {
     {
         perror("Falha em escrever no socket.");
         close(sockfd);
-        return 1;
+        return;
     }
 
     printf("Dado solicitado ao servidor.\n");
@@ -60,7 +61,7 @@ void connect_pipe(char type) {
     {
         perror("Falha em ler do socket.");
         close(sockfd);
-        return 1;
+        return;
     }
 
     printf("Dado recebido: %s\n", buffer);
