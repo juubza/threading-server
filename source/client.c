@@ -6,10 +6,10 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define SOCK_PATH "/tmp/pipeso"
+#define INT_SOCK_PATH "/tmp/pipe_int"
+#define STRING_SOCK_PATH "/tmp/pipe_string"
 
-int main()
-{ 
+void connect_pipe(char type) {
     int sockfd, len;
     struct sockaddr_un remote;
     char buffer[1024];
@@ -25,7 +25,14 @@ int main()
     // Connect to server
     memset(&remote, 0, sizeof(remote));
     remote.sun_family = AF_UNIX;
-    strncpy(remote.sun_path, SOCK_PATH, sizeof(remote.sun_path) - 1);
+
+    if (toupper(type) == 'S') {
+        strncpy(remote.sun_path, STRING_SOCK_PATH, sizeof(remote.sun_path) - 1);
+    }
+    else {
+        strncpy(remote.sun_path, INT_SOCK_PATH, sizeof(remote.sun_path) - 1);
+    }
+
     len = strlen(remote.sun_path) + sizeof(remote.sun_family);
     if (connect(sockfd, (struct sockaddr *)&remote, len) < 0)
     {
@@ -60,5 +67,12 @@ int main()
 
     // Close socket and exit
     close(sockfd);
+}
+
+int main()
+{ 
+    connect_pipe('S');
+    connect_pipe('I');
+
     return 0;
 }

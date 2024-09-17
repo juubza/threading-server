@@ -1,4 +1,4 @@
-# threading-server
+## threading-server
 
 Um sistema de servidor deve sempre disponível para pode responder a requisições feitas por outros
 processos ou threads, podendo ser no mesmo computador ou em outros computadores. Uma
@@ -23,3 +23,11 @@ a quantidade diante do hardware que você tem disponível.
 Na figura, dois processos clientes estão conectados ao processo servidor via pipe, porém que lida com
 os pipes são as threads na pool. As threads TN são as responsáveis por responder requisições de
 números, enquanto que as threads TS são as responsáveis por responder as requisições de string. 
+
+`gcc source/server.c -o server.exe -lpthread -lm`
+
+`gcc source/client.c -o client.exe -lpthread -lm` 
+
+`./server.exe` 
+
+`./client.exe` 

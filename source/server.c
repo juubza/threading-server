@@ -7,52 +7,56 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <assert.h>
+#include <math.h>
 
-#define SOCK_PATH "/tmp/pipeso"
+#define INT_SOCK_PATH "/tmp/pipe_int"
+#define STRING_SOCK_PATH "/tmp/pipe_string"
 
 pthread_mutex_t em = PTHREAD_MUTEX_INITIALIZER;
-int *randomNumber;
-char *randomString;
+int randomNumber;
+char randomString[20] = "Morte aos ponteiros!";
+char buffer[1024];
 
 void thread_int(void) {
     pthread_mutex_lock(&em);
     randomNumber = rand() % (1000 - 100 + 1) + 100;
+    buffer[0] = randomNumber;
     pthread_mutex_unlock(&em);
-    return randomNumber;
 }
 
 void thread_string(void) {
     pthread_mutex_lock(&em);
-    randomString = malloc(15 + 1);
-    if (randomString) {
-        rand_string(randomString, 15);
+    for (int i = 0; i < strlen(randomString); i++)
+    {
+        buffer[i] = randomString[i];
     }
     pthread_mutex_unlock(&em);
-    return randomString;
 }
 
-int main()
-{
-    //// NECESSÁRIO ADICIONAR MAIS UMA PIPE, de acordo com o desenho do professor é necessário duas pipes uma pra int e uma pra string
-
+void connect_pipe(char type) {
     int sockfd, newsockfd, len;
     struct sockaddr_un local, remote;
-    char buffer[1024];
     char dataRequested;
     pthread_t t_string1, t_string2, t_string3, t_int1, t_int2, t_int3;
 
-    // Create socket
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
         perror("Falha em criar o pipe");
-        return 1;
+        return;
     }
 
-    // Bind socket to local address
     memset(&local, 0, sizeof(local));
     local.sun_family = AF_UNIX;
-    strncpy(local.sun_path, SOCK_PATH, sizeof(local.sun_path) - 1);
+
+    if (toupper(type) == 'S') {
+        strncpy(local.sun_path, STRING_SOCK_PATH, sizeof(local.sun_path) - 1);
+    }
+    else {
+        strncpy(local.sun_path, INT_SOCK_PATH, sizeof(local.sun_path) - 1);
+    }
+
     unlink(local.sun_path);
     len = strlen(local.sun_path) + sizeof(local.sun_family);
 
@@ -60,7 +64,7 @@ int main()
     {
         perror("Falha em capturar o socket.");
         close(sockfd);
-        return 1;
+        return;
     }
 
     while (1) {
@@ -69,10 +73,15 @@ int main()
         {
             perror("Falha em escutar o socket.");
             close(sockfd);
-            return 1;
+            return;
         }
 
-        printf("Servidor ouvindo em %s.\n", SOCK_PATH);
+        if (toupper(type) == 'S') {
+            printf("Servidor ouvindo em %s.\n", STRING_SOCK_PATH);
+        }
+        else {
+            printf("Servidor ouvindo em %s.\n", INT_SOCK_PATH);
+        }
 
         // Accept connections
         memset(&remote, 0, sizeof(remote));
@@ -82,7 +91,7 @@ int main()
         {
             perror("Falha em aceitar conexão.");
             close(sockfd);
-            return 1;
+            return;
         }
 
         printf("Cliente conectado!\n");
@@ -93,23 +102,24 @@ int main()
             perror("Falha em ler do socket.");
             close(newsockfd);
             close(sockfd);
-            return 1;
+            return;
         }
 
         printf("Dado solicitado: %s\n", buffer);
 
         // Process data
-        //// AQUI ao invés de processar o dado passando de volta para o buffer, abrir as threads e direcionar ao tipo correto
         dataRequested = toupper(buffer[0]);
 
-        switch (dataRequested) //// verificar se abrimos sempre as 3 threads ou ver um outro mecanismo
+        switch (dataRequested) // TODO verificar se abrimos sempre as 3 threads ou ver um outro mecanismo para permitir que varios clientes se conectem a mesma pipe com threads separadas
         {
             case 'I':
+                len = floor(log10(abs(randomNumber))) + 1;
                 pthread_create(&t_int1, NULL, (void *) thread_int, NULL);
                 pthread_create(&t_int2, NULL, (void *) thread_int, NULL);
                 pthread_create(&t_int3, NULL, (void *) thread_int, NULL);
                 break;
             case 'S':
+                len = strlen(randomString);
                 pthread_create(&t_string1, NULL, (void *) thread_string, NULL);
                 pthread_create(&t_string2, NULL, (void *) thread_string, NULL);
                 pthread_create(&t_string3, NULL, (void *) thread_string, NULL);
@@ -118,14 +128,7 @@ int main()
                 perror("Dado solicitado é inválido.");
                 close(newsockfd);
                 close(sockfd);
-                return 1;
-        }
-
-        for (int i = 0; i < 20; i++)
-        {
-            //// definir buffer com o que o que veio da thread
-            //// é possível que seja necessário transformar randomInt e randomString em char[] pra fazer esse processamento
-            buffer[i] = toupper(buffer[i]);
+                return;
         }
 
         // Write processed data back to client
@@ -134,11 +137,18 @@ int main()
             perror("Falha em escrever no socket.");
             close(newsockfd);
             close(sockfd);
-            return 1;
+            return;
         }
 
         printf("Dado enviado ao cliente.\n");
     }
+}
+
+int main()
+{
+    // TODO fazer ambas as conexões rodarem paralelamente, atualmente só a primeira inicia e espera ela terminar para a segunda iniciar
+    connect_pipe('S');
+    connect_pipe('I');
 
     return 0;
 }
