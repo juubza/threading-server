@@ -1,4 +1,4 @@
-//Cliente pipe - testado no WSL
+// Cliente para o servidor com pool de threads
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -10,15 +10,14 @@
 #define INT_SOCK_PATH "/tmp/pipe_int"
 #define STRING_SOCK_PATH "/tmp/pipe_string"
 
-void connect_pipe(char type) {
-    int sockfd, len;
+void connect_and_request(const char* path, char request_type) {
+    int sockfd;
     struct sockaddr_un remote;
     char buffer[1024];
 
     // Create socket
     sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         perror("Falha em criar o socket.");
         return;
     }
@@ -26,17 +25,9 @@ void connect_pipe(char type) {
     // Connect to server
     memset(&remote, 0, sizeof(remote));
     remote.sun_family = AF_UNIX;
+    strncpy(remote.sun_path, path, sizeof(remote.sun_path) - 1);
 
-    if (toupper(type) == 'S') {
-        strncpy(remote.sun_path, STRING_SOCK_PATH, sizeof(remote.sun_path) - 1);
-    }
-    else {
-        strncpy(remote.sun_path, INT_SOCK_PATH, sizeof(remote.sun_path) - 1);
-    }
-
-    len = strlen(remote.sun_path) + sizeof(remote.sun_family);
-    if (connect(sockfd, (struct sockaddr *)&remote, len) < 0)
-    {
+    if (connect(sockfd, (struct sockaddr*)&remote, sizeof(remote)) < 0) {
         perror("Falha em conectar no servidor.");
         close(sockfd);
         return;
@@ -45,10 +36,10 @@ void connect_pipe(char type) {
     printf("Conectado ao servidor!\n");
 
     // Send data to server
-    printf("Entre com o tipo dado a ser solicitado ao servidor: (s/i)");
-    fgets(buffer, sizeof(buffer), stdin);
-    if (write(sockfd, buffer, strlen(buffer) + 1) < 0)
-    {
+    buffer[0] = request_type;
+    buffer[1] = '\0'; // Null-terminate the string
+
+    if (write(sockfd, buffer, strlen(buffer) + 1) < 0) {
         perror("Falha em escrever no socket.");
         close(sockfd);
         return;
@@ -57,8 +48,8 @@ void connect_pipe(char type) {
     printf("Dado solicitado ao servidor.\n");
 
     // Read data from server
-    if (read(sockfd, buffer, sizeof(buffer)) < 0)
-    {
+    memset(buffer, 0, sizeof(buffer));
+    if (read(sockfd, buffer, sizeof(buffer)) < 0) {
         perror("Falha em ler do socket.");
         close(sockfd);
         return;
@@ -70,10 +61,20 @@ void connect_pipe(char type) {
     close(sockfd);
 }
 
-int main()
-{ 
-    connect_pipe('S');
-    connect_pipe('I');
+int main() {
+    char type;
+
+    printf("Digite o tipo de dado a ser solicitado: (s/i)\n");
+    scanf(" %c", &type);
+    getchar(); // Clear newline from input buffer
+
+    if (tolower(type) == 's') {
+        connect_and_request(STRING_SOCK_PATH, 'S');
+    } else if (tolower(type) == 'i') {
+        connect_and_request(INT_SOCK_PATH, 'I');
+    } else {
+        printf("Tipo de dado inválido.\n");
+    }
 
     return 0;
 }
