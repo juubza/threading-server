@@ -33,9 +33,8 @@ void* handle_int_requests(void* arg) {
 void* handle_string_requests(void* arg) {
     while (1) {
         pthread_mutex_lock(&mutex);
-        for(int i=0; i<20; i++){
-            randomString[i] = 'a' + (char)(rand()%15);
-        }
+       for (int i = 0; i < 20; i++)
+            randomString[i] = 'a' + (char)(rand() % 15);
         pthread_mutex_unlock(&mutex);
         
         // Simular um tempo de processamento
