@@ -34,8 +34,8 @@ void* handle_int_requests(void* arg) {
 void* handle_string_requests(void* arg) {
     while (1) {
         pthread_mutex_lock(&mutex);
-        strncpy(buffer, randomString, sizeof(buffer) - 1);
-        buffer[sizeof(buffer) - 1] = '\0'; // Garantir que o buffer é null-terminated
+       for (int i = 0; i < 20; i++)
+            randomString[i] = 'a' + (char)(rand() % 15);
         pthread_mutex_unlock(&mutex);
         
         // Simular um tempo de processamento
