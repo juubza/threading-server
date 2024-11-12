@@ -24,6 +24,10 @@ Na figura, dois processos clientes estão conectados ao processo servidor via pi
 os pipes são as threads na pool. As threads TN são as responsáveis por responder requisições de
 números, enquanto que as threads TS são as responsáveis por responder as requisições de string. 
 
+`ps -o min_flt,maj_flt <PID>`
+
+`g++ source/alocacao.cpp -o alocacao.exe -lpthread -lm`
+
 `gcc source/server.c -o server.exe -lpthread -lm`
 
 `gcc source/client.c -o client.exe -lpthread -lm` 

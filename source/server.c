@@ -11,7 +11,7 @@
 
 #define INT_SOCK_PATH "/tmp/pipe_int"
 #define STRING_SOCK_PATH "/tmp/pipe_string"
-#define NUM_THREADS 4 // Número de threads no pool
+#define NUM_THREADS 256 // Número de threads no pool
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 int randomNumber;
