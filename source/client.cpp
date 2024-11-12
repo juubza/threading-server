@@ -56,20 +56,23 @@ void connect_and_request(const char* path, char request_type) {
 }
 
 int main() {
-    char type;
-    printf("Opção (e) : exit \n");
-    while (type != 'e') {
-        printf("Digite o tipo de dado a ser solicitado: (s/i)\n");
-        scanf(" %c", &type);
-        getchar(); 
+    // Array de tipos de dados para enviar automaticamente
+    char request_types[] = {'S', 'I', 'S', 'I', 'S'}; // Exemplo de sequência de solicitações
+    int num_requests = sizeof(request_types) / sizeof(request_types[0]);
 
-        if (tolower(type) == 's') {
+    printf("Iniciando solicitações automáticas...\n");
+
+    // Loop para enviar solicitações automaticamente
+    for (int i = 0; i < num_requests; ++i) {
+        if (tolower(request_types[i]) == 's') {
             connect_and_request(STRING_SOCK_PATH, 'S');
-        } else if (tolower(type) == 'i') {
+        } else if (tolower(request_types[i]) == 'i') {
             connect_and_request(INT_SOCK_PATH, 'I');
         } else {
             printf("Tipo de dado inválido.\n");
         }
     }
+
+    printf("Todas as solicitações foram feitas.\n");
     return 0;
 }
